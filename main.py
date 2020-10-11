@@ -6,60 +6,78 @@ from google.cloud import bigquery
 
 client = bigquery.Client()
 
-
-def query_request(query_sql):
-    data = []
-
-    client = bigquery.Client()
-    query_job = client.query(query_sql)
-    results = query_job.result()
-
-    for row in results:
-        data.append(row["last_tweet_time"])
-
-    return data
-
-
-def query_word_array():
-    data = []
-
-    query_sql = """
-    SELECT
-    word
-    FROM
-    `tanelis.tweets_ml.training_data2`,
-    UNNEST(words) AS word
-    """
-
-    client = bigquery.Client()
-    query_job = client.query(query_sql)
-    results = query_job.result()
-
-    for row in results:
-        data.append(row["word"])
-
-    return data
-
-
-tokenized_text = query_word_array()
-
-# tokenized_text = [
-#     word
-#     for word in re.split('\W+', text)
-#     if word != ''
-# ]
-
-# print(tokenized_text)
-
 markov_graph = defaultdict(lambda: defaultdict(int))
 
-print(markov_graph)
+def get_markov_graph():
+    data = []
 
-last_word = tokenized_text[0].lower()
-for word in tokenized_text[1:]:
-    word = word.lower()
-    markov_graph[last_word][word] += 1
-    last_word = word
+    query_sql = "SELECT * FROM `tanelis.markov_chain.markov_graph` ORDER BY ARRAY_LENGTH(next) DESC"
+
+    # SELECT
+    # 'tämä' AS current_word,
+    #     [STRUCT('on' AS word,
+    #     20 AS count,
+    #     20/100 AS weight),
+    #     STRUCT('ei' AS word,
+    #     80 AS count,
+    #     80/100 AS weight)] AS next
+
+    client = bigquery.Client()
+    query_job = client.query(query_sql)
+    results = query_job.result()
+
+    for row in results:
+        current_word = row["current_word"]
+        next_array = row["next"]
+
+        for obj in next_array:
+            next_word = obj["word"]
+            next_word_count = obj["count"]
+            markov_graph[current_word][next_word] = next_word_count
+
+
+get_markov_graph()
+#print(markov_graph)
+
+print('graph created')
+# asfdfd
+
+
+# def get_text_array():
+#     data = []
+
+#     query_sql = """
+#     SELECT
+#     word
+#     FROM
+#     `tanelis.tweets_eu.tweets_reporting`,
+#     UNNEST(words) AS word
+#     LIMIT 1000
+#     """
+
+#     client = bigquery.Client()
+#     query_job = client.query(query_sql)
+#     results = query_job.result()
+
+#     for row in results:
+#         data.append(row["word"])
+
+#     return data
+
+
+# tokenized_text = get_text_array()
+
+# # print(tokenized_text)
+
+# last_word = tokenized_text[0].lower()
+# for word in tokenized_text[1:]:
+#     word = word.lower()
+#     markov_graph[last_word][word] += 1
+#     last_word = word
+
+# print(markov_graph)
+
+
 
 # Preview graph.
 # limit = 3
@@ -95,4 +113,4 @@ def walk_graph(graph, distance=5, start_node=None):
 
 for i in range(10):
     print(' '.join(walk_graph(
-        markov_graph, distance=12)), '\n')
+        markov_graph, distance=12, start_node="tämä")), '\n')

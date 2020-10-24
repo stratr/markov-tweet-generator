@@ -11,7 +11,7 @@ markov_graph = defaultdict(lambda: defaultdict(int))
 def get_markov_graph():
     data = []
 
-    query_sql = "SELECT * FROM `tanelis.markov_chain.markov_graph` ORDER BY ARRAY_LENGTH(next) DESC"
+    query_sql = "SELECT * FROM `tanelis.markov_chain.markov_graph`"
 
     # SELECT
     # 'tämä' AS current_word,
@@ -86,6 +86,15 @@ print('graph created')
 #   for next_word in next_words:
 #     print(first_word, next_word)
 
+
+# TODO:
+# Select the start word randomly based what have actually been common start words
+# if a start word has not been specified in the function
+
+# For x first words, e.g. 6, don't return any words that don't have a next word in the graph
+# (stop words). After x words do some probabilistic determination on when it's a good
+# time to stop. E.g. based on how often the word has ended a tweet. The longer the tweet
+# is the more likely the word should be to end it.
 
 def walk_graph(graph, distance=5, start_node=None):
     """Returns a list of words from a randomly weighted walk."""

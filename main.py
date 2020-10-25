@@ -30,7 +30,6 @@ markov_graph = defaultdict(lambda: defaultdict(lambda: [0, True]))
 # sadfsdfsdffsd
 
 
-
 def get_markov_graph():
     data = []
 
@@ -57,8 +56,10 @@ def get_markov_graph():
             next_word = obj["word"]
             next_word_count = obj["count"]
             next_word_weight = obj["weight"]
-            next_word_stop = obj["stop"] # if the word is a "stop word" that leads to a dead end
-            markov_graph[current_word][next_word] = [next_word_weight, next_word_stop]
+            # if the word is a "stop word" that leads to a dead end
+            next_word_stop = obj["stop"]
+            markov_graph[current_word][next_word] = [
+                next_word_weight, next_word_stop]
 
 
 get_markov_graph()
@@ -75,11 +76,13 @@ print('graph created')
 # is the more likely the word should be to end it.
 
 # graph = the markov graph as a dictionary
-# distance = the number of words per tweet
+# max_distance = the number of words per tweet
 # start_node = the word to start with
-def walk_graph(graph, distance=8, start_node=None):
+
+
+def walk_graph(graph, min_distance=5, max_distance=8, start_node=None):
     """Returns a list of words from a randomly weighted walk."""
-    if distance <= 0:
+    if max_distance <= 0:
         return []
 
     # If not given, pick a start node at random.
@@ -93,18 +96,27 @@ def walk_graph(graph, distance=8, start_node=None):
 
     # Check if the chosen word leads to a dead end. Only allowed if min length for tweet has been reached.
     if markov_graph[start_node][chosen_word][1] == True:
-        print('is a stop word, should not be used ' + chosen_word)
-        # the word is skipped
-        return walk_graph(
-            graph, distance=distance,
-            start_node=start_node)
+        # allow the tweet to end if the word is a "stop word" and min_distance has been reached
+        if min_distance <= 0:
+            print('end the text in a stop word: ' + chosen_word)
+            return [chosen_word]
+        # skip the chosen word and retry
+        else:
+            print('chosen word is a dead end, choose another one: ' + chosen_word)
+            return walk_graph(
+                graph, min_distance=min_distance, max_distance=max_distance,
+                start_node=start_node)
+
+    # If min_distance is reached use an increasing probabibility and the word probability as a possibility to end the tweet before
+    # max length
 
     return [chosen_word] + walk_graph(
-        graph, distance=distance-1,
+        graph, min_distance=min_distance-1, max_distance=max_distance-1,
         start_node=chosen_word)
+
 
 # Print tweets
 start_word = 'tämä'
 for i in range(10):
     print(start_word + ' ' + ' '.join(walk_graph(
-        markov_graph, distance=12, start_node=start_word)), '\n')
+        markov_graph, min_distance=4, max_distance=12, start_node=start_word)), '\n')

@@ -8,28 +8,6 @@ client = bigquery.Client()
 
 markov_graph = defaultdict(lambda: defaultdict(lambda: [0, True]))
 
-# test_dict = defaultdict(lambda: defaultdict(lambda: [0, True]))
-
-# test_dict['numbers']['test'] = [1, False]
-# test_dict['numbers']['asdf'] = [1, False]
-# #print(test_dict['numbers']['dfdfdf'])
-
-# print('keys:')
-# print(test_dict['numbers'].keys())
-
-# print('values:')
-# print(test_dict['numbers'].values())
-
-# print('testing mapped values:')
-# for value in test_dict['numbers'].values():
-#     print(value[0])
-
-# print(list(map(lambda x: x[0], test_dict['numbers'].values())))
-
-
-# sadfsdfsdffsd
-
-
 def get_markov_graph():
     data = []
 
@@ -58,8 +36,10 @@ def get_markov_graph():
             next_word_weight = obj["weight"]
             # if the word is a "stop word" that leads to a dead end
             next_word_stop = obj["stop"]
+            # a probability has been counted for how often the next word has ended a tweet
+            next_word_last_word_probability = obj["last_word_probability"]
             markov_graph[current_word][next_word] = [
-                next_word_weight, next_word_stop]
+                next_word_weight, next_word_stop, next_word_last_word_probability]
 
 
 get_markov_graph()
@@ -80,7 +60,7 @@ print('graph created')
 # start_node = the word to start with
 
 
-def walk_graph(graph, min_distance=5, max_distance=8, start_node=None):
+def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=None):
     """Returns a list of words from a randomly weighted walk."""
     if max_distance <= 0:
         return []
@@ -108,7 +88,11 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None):
                 start_node=start_node)
 
     # If min_distance is reached use an increasing probabibility and the word probability as a possibility to end the tweet before
-    # max length
+    if min_distance <= 0:
+        # TODO: add some check if the end_tries was provided
+        print(end_tries) # this is now being passed as None always for some reason, some bug
+        print('min distance reached')
+
 
     return [chosen_word] + walk_graph(
         graph, min_distance=min_distance-1, max_distance=max_distance-1,
@@ -116,7 +100,12 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None):
 
 
 # Print tweets
-start_word = 'tämä'
-for i in range(10):
-    print(start_word + ' ' + ' '.join(walk_graph(
-        markov_graph, min_distance=4, max_distance=12, start_node=start_word)), '\n')
+start_word = '@MarinSanna'
+
+
+def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=10):
+    for i in range(number_of_tweets):
+        print(start_word + ' ' + ' '.join(walk_graph(
+            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_node, end_tries=(max_distance-min_distance))), '\n')
+
+generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=start_word, number_of_tweets=10)

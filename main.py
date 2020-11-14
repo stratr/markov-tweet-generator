@@ -13,15 +13,6 @@ def get_markov_graph():
 
     query_sql = "SELECT * FROM `tanelis.markov_chain.markov_graph`"
 
-    # SELECT
-    # 'tämä' AS current_word,
-    #     [STRUCT('on' AS word,
-    #     20 AS count,
-    #     20/100 AS weight),
-    #     STRUCT('ei' AS word,
-    #     80 AS count,
-    #     80/100 AS weight)] AS next
-
     client = bigquery.Client()
     query_job = client.query(query_sql)
     results = query_job.result()
@@ -34,33 +25,18 @@ def get_markov_graph():
             next_word = obj["word"]
             next_word_count = obj["count"]
             next_word_weight = obj["weight"]
-            # if the word is a "stop word" that leads to a dead end
-            next_word_stop = obj["stop"]
-            # a probability has been counted for how often the next word has ended a tweet
-            next_word_last_word_probability = obj["last_word_probability"]
+            next_word_stop = obj["stop"] # if the word is a "stop word" that leads to a dead end
+            next_word_end_probability = obj["end_probability"] # a probability for each word on how often they should end the tweet once min words are reached
+
             markov_graph[current_word][next_word] = [
-                next_word_weight, next_word_stop, next_word_last_word_probability]
+                next_word_weight, next_word_stop, next_word_end_probability]
 
 
 get_markov_graph()
 
 print('graph created')
 
-# TODO:
-# Select the start word randomly based what have actually been common start words
-# if a start word has not been specified in the function
-
-# For x first words, e.g. 6, don't return any words that don't have a next word in the graph
-# (stop words). After x words do some probabilistic determination on when it's a good
-# time to stop. E.g. based on how often the word has ended a tweet. The longer the tweet
-# is the more likely the word should be to end it.
-
-# graph = the markov graph as a dictionary
-# max_distance = the number of words per tweet
-# start_node = the word to start with
-
-
-def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=None):
+def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=0):
     """Returns a list of words from a randomly weighted walk."""
     if max_distance <= 0:
         return []
@@ -78,25 +54,25 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries
     if markov_graph[start_node][chosen_word][1] == True:
         # allow the tweet to end if the word is a "stop word" and min_distance has been reached
         if min_distance <= 0:
-            print('end the text in a stop word: ' + chosen_word)
+            #print('end the text in a stop word: ' + chosen_word)
             return [chosen_word]
         # skip the chosen word and retry
         else:
-            print('chosen word is a dead end, choose another one: ' + chosen_word)
+            #print('chosen word is a dead end, choose another one: ' + chosen_word)
             return walk_graph(
                 graph, min_distance=min_distance, max_distance=max_distance,
-                start_node=start_node)
+                start_node=start_node, end_tries=end_tries)
 
     # If min_distance is reached use an increasing probabibility and the word probability as a possibility to end the tweet before
     if min_distance <= 0:
-        # TODO: add some check if the end_tries was provided
-        print(end_tries) # this is now being passed as None always for some reason, some bug
-        print('min distance reached')
-
+        end_probability = markov_graph[start_node][chosen_word][2] * ((min_distance-1)*-1/end_tries)
+        if np.random.random_sample() <= end_probability:
+            #print('end the tweet with end probability: ' + str(end_probability))
+            return [chosen_word]
 
     return [chosen_word] + walk_graph(
         graph, min_distance=min_distance-1, max_distance=max_distance-1,
-        start_node=chosen_word)
+        start_node=chosen_word, end_tries=end_tries)
 
 
 # Print tweets
@@ -104,8 +80,9 @@ start_word = '@MarinSanna'
 
 
 def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=10):
+    num_end_tries = max_distance - min_distance
     for i in range(number_of_tweets):
         print(start_word + ' ' + ' '.join(walk_graph(
-            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_node, end_tries=(max_distance-min_distance))), '\n')
+            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_node, end_tries=num_end_tries)), '\n')
 
-generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=start_word, number_of_tweets=10)
+generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=start_word, number_of_tweets=30)

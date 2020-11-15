@@ -6,11 +6,16 @@ from google.cloud import bigquery
 
 client = bigquery.Client()
 
+# initiate markov graph dictionary
 markov_graph = defaultdict(lambda: defaultdict(lambda: [0, True]))
 
-def get_markov_graph():
-    data = []
+# start word weights
+start_words = []
+start_weights = []
 
+# build the ditionary and get start word weights
+def get_source_data():
+    # The source data is already prepared in BigQuery. Read it into dictionary format.
     query_sql = "SELECT * FROM `tanelis.markov_chain.markov_graph`"
 
     client = bigquery.Client()
@@ -19,11 +24,12 @@ def get_markov_graph():
 
     for row in results:
         current_word = row["current_word"]
+        start_weight = row["start_probability"]
         next_array = row["next"]
 
+        # Get the next words data for the markov graph
         for obj in next_array:
             next_word = obj["word"]
-            next_word_count = obj["count"]
             next_word_weight = obj["weight"]
             next_word_stop = obj["stop"] # if the word is a "stop word" that leads to a dead end
             next_word_end_probability = obj["end_probability"] # a probability for each word on how often they should end the tweet once min words are reached
@@ -31,10 +37,11 @@ def get_markov_graph():
             markov_graph[current_word][next_word] = [
                 next_word_weight, next_word_stop, next_word_end_probability]
 
+        # Get the start word weights for when the tweet is generated with a random start word
+        start_words.append(current_word)
+        start_weights.append(start_weight)
 
-get_markov_graph()
-
-print('graph created')
+get_source_data()
 
 def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=0):
     """Returns a list of words from a randomly weighted walk."""
@@ -43,7 +50,9 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries
 
     # If not given, pick a start node at random.
     if not start_node:
-        start_node = random.choice(list(graph.keys()))
+        #start_node = random.choice(list(graph.keys()))
+        start_node = np.random.choice(start_words, None, start_weights)
+        # RecursionError: maximum recursion depth exceeded while calling a Python object
 
     # Pick a destination using weighted distribution.
     choices = list(markov_graph[start_node].keys())
@@ -85,4 +94,4 @@ def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, numb
         print(start_word + ' ' + ' '.join(walk_graph(
             graph, min_distance=min_distance, max_distance=max_distance, start_node=start_node, end_tries=num_end_tries)), '\n')
 
-generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=start_word, number_of_tweets=30)
+generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=30)

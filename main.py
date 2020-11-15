@@ -50,9 +50,7 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries
 
     # If not given, pick a start node at random.
     if not start_node:
-        #start_node = random.choice(list(graph.keys()))
-        start_node = np.random.choice(start_words, None, start_weights)
-        # RecursionError: maximum recursion depth exceeded while calling a Python object
+        start_node = random.choice(list(graph.keys()))
 
     # Pick a destination using weighted distribution.
     choices = list(markov_graph[start_node].keys())
@@ -84,14 +82,20 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries
         start_node=chosen_word, end_tries=end_tries)
 
 
-# Print tweets
-start_word = '@MarinSanna'
-
-
 def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=10):
     num_end_tries = max_distance - min_distance
-    for i in range(number_of_tweets):
-        print(start_word + ' ' + ' '.join(walk_graph(
-            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_node, end_tries=num_end_tries)), '\n')
+
+    start_nodes = []
+    if not start_node:
+        # use random start words based on actual weights
+        start_nodes = [np.random.choice(start_words, None, start_weights) for x in range(number_of_tweets)]
+    else:
+        # use the selected start word
+        start_nodes = [start_node for x in range(number_of_tweets)]
+
+    for start_word in start_nodes:
+        print(start_word.capitalize() + ' ' + ' '.join(walk_graph(
+            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_word, end_tries=num_end_tries)), '\n')
+
 
 generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=30)

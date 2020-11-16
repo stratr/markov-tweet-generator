@@ -1,6 +1,6 @@
 import numpy as np
 import random
-import re
+#import re
 from collections import defaultdict
 from google.cloud import bigquery
 
@@ -41,8 +41,7 @@ def get_source_data():
         start_words.append(current_word)
         start_weights.append(start_weight)
 
-get_source_data()
-
+#TODO: transform this function into a loop (iterative) insteadof the recursive format. That way it shouldn't run into recursion limits.
 def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=0):
     """Returns a list of words from a randomly weighted walk."""
     if max_distance <= 0:
@@ -83,6 +82,7 @@ def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries
 
 
 def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=10):
+    generated_tweets = []
     num_end_tries = max_distance - min_distance
 
     start_nodes = []
@@ -94,8 +94,24 @@ def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, numb
         start_nodes = [start_node for x in range(number_of_tweets)]
 
     for start_word in start_nodes:
-        print(start_word.capitalize() + ' ' + ' '.join(walk_graph(
-            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_word, end_tries=num_end_tries)), '\n')
+        generated_tweets.append({u'text': start_word.capitalize() + ' ' + ' '.join(walk_graph(
+            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_word, end_tries=num_end_tries))})
+    
+    return generated_tweets
 
+# load the markov graph
+get_source_data()
 
-generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=30)
+rows_to_insert = generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=1)
+
+#print(rows_to_insert)
+
+# Insert the generated tweets into bigquery
+#rows_to_insert = map(lambda x: {u"text": x}, tweets)
+table_id = 'tanelis.markov_chain.generated_tweets'
+
+errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.
+if errors == []:
+    print("New rows have been added.")
+else:
+    print("Encountered errors while inserting rows: {}".format(errors))

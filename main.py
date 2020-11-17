@@ -41,6 +41,55 @@ def get_source_data():
         start_words.append(current_word)
         start_weights.append(start_weight)
 
+
+def generate_tweet(graph, min_distance=5, max_distance=8, start_word=None):
+    """
+    Generates a new tweet using the markov graph that was defined earlier.
+    The length of the tweet is something between the min_distance and max_distance.
+    The function attempts to stop the tweet with some word that makes some sense.
+    start_word is the first word the the generator uses to start iterating through the markov graph. If not specified a random wrod will be used.
+    """
+
+    num_end_tries = max_distance - min_distance
+
+    if not start_word:
+        start_word = random.choice(list(graph.keys()))
+
+    tweet_words = [start_word]
+    current_word = start_word
+
+    i = max_distance
+    while i > 0:
+        # Pick the next word based on the weights and current word
+        choices = list(markov_graph[start_word].keys())
+        weights = list(map(lambda x: x[0], markov_graph[start_word].values()))
+        next_word = np.random.choice(choices, None, p=weights)
+
+        # Check if the chosen word is a stop word (dead end)
+        if markov_graph[current_word][next_word][1] == True:
+            if len(tweet_words) >= min_distance:
+                # End the tweet with the chosen word
+                tweet_words.append(next_word)
+                current_word = next_word
+                break
+            else:
+                # Try to pick another word
+                continue
+
+
+        # If min tweet length has been already reached take a flip to see if the chosen word will be the last one
+        # TODO: still a work in progress
+        # make sure that current_word and next_word are being used correctly
+        if len(tweet_words) >= min_distance:
+            end_probability = markov_graph[current_word][next_word][2] * ((min_distance-1)*-1/end_tries)
+
+        tweet_words.append(next_word)
+        current_word = next_word
+        i -= 1
+    else:
+        return ' '.join(tweet_words).capitalize()
+
+
 #TODO: transform this function into a loop (iterative) insteadof the recursive format. That way it shouldn't run into recursion limits.
 def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=0):
     """Returns a list of words from a randomly weighted walk."""
@@ -101,6 +150,10 @@ def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, numb
 
 # load the markov graph
 get_source_data()
+new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=8, start_word="ja")
+print(new_tweet)
+
+sadfasfdfsda
 
 rows_to_insert = generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=1)
 

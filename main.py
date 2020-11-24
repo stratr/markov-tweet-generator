@@ -142,12 +142,23 @@ def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, numb
 def random_start_word(start_words):
     choices = list(start_words.keys())
     weights = list(start_words.values())
+
+    #TODO: use first_word_count from the BQ view instead
+
+      weights = np.array(
+      list(markov_graph[start_node].values()),
+      dtype=np.float64)
+  # Normalize word counts to sum to 1.
+  weights /= weights.sum()
+
+
+    print(sum(weights))
     start_word = np.random.choice(choices, None, p=weights)
 
     return start_word
 
 print(random_start_word(start_words))
-sdfdsfsdfsfdfsd
+sdfdsfsdfsfdfsdcd 
 
 
 # load the markov graph

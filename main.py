@@ -19,14 +19,6 @@ def load_pickle(bucket, folder, file_name):
     
     return pickle.loads(blob.download_as_string())
 
-# Load the markov graph
-markov_graph = load_pickle(bucket, folder, 'markov_graph')
-# print(markov_graph['ja']['suru'][1])
-# asdfdfsdfs
-
-# Load start words
-start_words = load_pickle(bucket, folder, 'start_words')
-
 
 def generate_tweet(graph, min_distance=5, max_distance=8, start_word=None):
     """
@@ -57,7 +49,7 @@ def generate_tweet(graph, min_distance=5, max_distance=8, start_word=None):
         if markov_graph[current_word][next_word][1] == True:
             if len(tweet_words) >= min_distance:
                 # End the tweet with the chosen word
-                print('Ending the word because of a stop word')
+                #print('Ending the word because of a stop word')
                 tweet_words.append(next_word)
                 break
             else:
@@ -69,7 +61,7 @@ def generate_tweet(graph, min_distance=5, max_distance=8, start_word=None):
             end_probability = markov_graph[current_word][next_word][2] * end_try / num_end_tries
             end_try += 1
             if np.random.random_sample() <= end_probability:
-                print('end the tweet with end probability: ' + str(end_probability))
+                #print('end the tweet with end probability: ' + str(end_probability))
                 tweet_words.append(next_word)
                 break
 
@@ -80,102 +72,44 @@ def generate_tweet(graph, min_distance=5, max_distance=8, start_word=None):
     return ' '.join(tweet_words).capitalize()
 
 
-# #TODO: transform this function into a loop (iterative) insteadof the recursive format. That way it shouldn't run into recursion limits.
-# def walk_graph(graph, min_distance=5, max_distance=8, start_node=None, end_tries=0):
-#     """Returns a list of words from a randomly weighted walk."""
-#     if max_distance <= 0:
-#         return []
-
-#     # If not given, pick a start node at random.
-#     if not start_node:
-#         start_node = random.choice(list(graph.keys()))
-
-#     # Pick a destination using weighted distribution.
-#     choices = list(markov_graph[start_node].keys())
-#     weights = list(map(lambda x: x[0], markov_graph[start_node].values()))
-#     chosen_word = np.random.choice(choices, None, p=weights)
-
-#     # Check if the chosen word leads to a dead end. Only allowed if min length for tweet has been reached.
-#     if markov_graph[start_node][chosen_word][1] == True:
-#         # allow the tweet to end if the word is a "stop word" and min_distance has been reached
-#         if min_distance <= 0:
-#             #print('end the text in a stop word: ' + chosen_word)
-#             return [chosen_word]
-#         # skip the chosen word and retry
-#         else:
-#             #print('chosen word is a dead end, choose another one: ' + chosen_word)
-#             return walk_graph(
-#                 graph, min_distance=min_distance, max_distance=max_distance,
-#                 start_node=start_node, end_tries=end_tries)
-
-#     # If min_distance is reached use an increasing probabibility and the word probability as a possibility to end the tweet before
-#     if min_distance <= 0:
-#         end_probability = markov_graph[start_node][chosen_word][2] * ((min_distance-1)*-1/end_tries)
-#         if np.random.random_sample() <= end_probability:
-#             #print('end the tweet with end probability: ' + str(end_probability))
-#             return [chosen_word]
-
-#     return [chosen_word] + walk_graph(
-#         graph, min_distance=min_distance-1, max_distance=max_distance-1,
-#         start_node=chosen_word, end_tries=end_tries)
-
-
-def generateTweets(graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=10):
-    generated_tweets = []
-    num_end_tries = max_distance - min_distance
-
-    start_nodes = []
-    if not start_node:
-        # use random start words based on actual weights
-        start_nodes = [np.random.choice(start_words, None, start_weights) for x in range(number_of_tweets)]
-    else:
-        # use the selected start word
-        start_nodes = [start_node for x in range(number_of_tweets)]
-
-    for start_word in start_nodes:
-        generated_tweets.append({u'text': start_word.capitalize() + ' ' + ' '.join(walk_graph(
-            graph, min_distance=min_distance, max_distance=max_distance, start_node=start_word, end_tries=num_end_tries))})
-    
-    return generated_tweets
-
-
-def random_start_word(start_words):
+def random_start_words(start_words, word_count):
     choices = list(start_words.keys())
-    weights = list(start_words.values())
+    # weights = list(start_words.values())
+    weights = np.array(
+        list(start_words.values()),
+        dtype=np.float64)
+    weights /= weights.sum()
 
-    #TODO: use first_word_count from the BQ view instead
-
-      weights = np.array(
-      list(markov_graph[start_node].values()),
-      dtype=np.float64)
-  # Normalize word counts to sum to 1.
-  weights /= weights.sum()
-
-
-    print(sum(weights))
+    words = [np.random.choice(choices, None, p=weights) for word in range(word_count)]
     start_word = np.random.choice(choices, None, p=weights)
 
-    return start_word
-
-print(random_start_word(start_words))
-sdfdsfsdfsfdfsdcd 
+    return words
 
 
-# load the markov graph
-new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=16, start_word="ja")
-print(new_tweet)
+ # Load the markov graph
+markov_graph = load_pickle(bucket, folder, 'markov_graph')
 
-sadfasfdfsda
+# Load start words
+start_words = load_pickle(bucket, folder, 'start_words') 
 
-rows_to_insert = generateTweets(markov_graph, min_distance=6, max_distance=16, start_node=None, number_of_tweets=1)
+# Generate x number of start words based on start weights
+starts = random_start_words(start_words, 100)
 
-#print(rows_to_insert)
+# Generate new tweets from the random start words
+tweets = []
+for start in starts:
+    new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=16, start_word=start)
+    tweets.append(new_tweet)
+
+#print(tweets)
+
 
 # Insert the generated tweets into bigquery
-#rows_to_insert = map(lambda x: {u"text": x}, tweets)
+rows_to_insert = map(lambda x: {u"text": x}, tweets)
 table_id = 'tanelis.markov_chain.generated_tweets'
+client = bigquery.Client()
 
-errors = client.insert_rows_json(table_id, rows_to_insert)  # Make an API request.
+errors = client.insert_rows_json(table_id, rows_to_insert)
 if errors == []:
     print("New rows have been added.")
 else:

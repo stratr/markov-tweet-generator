@@ -1,6 +1,8 @@
 import numpy as np
 import random
 import pickle
+import uuid
+from datetime import date
 from collections import defaultdict
 from google.cloud import storage
 from google.cloud import bigquery
@@ -97,15 +99,23 @@ starts = random_start_words(start_words, 100)
 
 # Generate new tweets from the random start words
 tweets = []
+today = date.today()
+d_string = today.strftime("%Y-%m-%d")
 for start in starts:
     new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=16, start_word=start)
-    tweets.append(new_tweet)
+    tweet_id = str(uuid.uuid1())
+    tweets.append({
+        "text": new_tweet,
+        "tweet_id": tweet_id,
+        "date": d_string
+        })
 
 #print(tweets)
 
 
 # Insert the generated tweets into bigquery
-rows_to_insert = map(lambda x: {u"text": x}, tweets)
+#rows_to_insert = map(lambda x: {u"text": x}, tweets)
+rows_to_insert = tweets
 table_id = 'tanelis.markov_chain.generated_tweets'
 client = bigquery.Client()
 

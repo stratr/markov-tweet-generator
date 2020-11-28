@@ -1,0 +1,4 @@
+numpy
+datetime
+google-cloud-bigquery
+google-cloud-storage

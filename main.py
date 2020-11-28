@@ -1,5 +1,4 @@
 import numpy as np
-import random
 import pickle
 import uuid
 from datetime import date
@@ -88,39 +87,72 @@ def random_start_words(start_words, word_count):
     return words
 
 
+def generate_new_tweets(number_tweets):
+    # Generate x number of start words based on start weights
+    starts = random_start_words(start_words, number_tweets)
+
+    # Generate new tweets from the random start words
+    tweets = []
+    today = date.today()
+    d_string = today.strftime("%Y-%m-%d")
+    for start in starts:
+        new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=32, start_word=start)
+        tweet_id = str(uuid.uuid1())
+        tweets.append({
+            "text": new_tweet,
+            "tweet_id": tweet_id,
+            "date": d_string
+            })
+
+    # Insert the generated tweets into bigquery
+    #rows_to_insert = map(lambda x: {u"text": x}, tweets)
+    rows_to_insert = tweets
+    table_id = 'tanelis.markov_chain.generated_tweets'
+    client = bigquery.Client()
+
+    errors = client.insert_rows_json(table_id, rows_to_insert)
+    if errors == []:
+        print("New rows have been added.")
+    else:
+        print("Encountered errors while inserting rows: {}".format(errors))
+
+
+
  # Load the markov graph
 markov_graph = load_pickle(bucket, folder, 'markov_graph')
 
 # Load start words
-start_words = load_pickle(bucket, folder, 'start_words') 
-
-# Generate x number of start words based on start weights
-starts = random_start_words(start_words, 100)
-
-# Generate new tweets from the random start words
-tweets = []
-today = date.today()
-d_string = today.strftime("%Y-%m-%d")
-for start in starts:
-    new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=16, start_word=start)
-    tweet_id = str(uuid.uuid1())
-    tweets.append({
-        "text": new_tweet,
-        "tweet_id": tweet_id,
-        "date": d_string
-        })
-
-#print(tweets)
+start_words = load_pickle(bucket, folder, 'start_words')
 
 
-# Insert the generated tweets into bigquery
-#rows_to_insert = map(lambda x: {u"text": x}, tweets)
-rows_to_insert = tweets
-table_id = 'tanelis.markov_chain.generated_tweets'
-client = bigquery.Client()
+generate_new_tweets(100)
 
-errors = client.insert_rows_json(table_id, rows_to_insert)
-if errors == []:
-    print("New rows have been added.")
-else:
-    print("Encountered errors while inserting rows: {}".format(errors))
+
+# # Generate x number of start words based on start weights
+# starts = random_start_words(start_words, 100)
+
+# # Generate new tweets from the random start words
+# tweets = []
+# today = date.today()
+# d_string = today.strftime("%Y-%m-%d")
+# for start in starts:
+#     new_tweet = generate_tweet(markov_graph, min_distance=5, max_distance=32, start_word=start)
+#     tweet_id = str(uuid.uuid1())
+#     tweets.append({
+#         "text": new_tweet,
+#         "tweet_id": tweet_id,
+#         "date": d_string
+#         })
+
+
+# # Insert the generated tweets into bigquery
+# #rows_to_insert = map(lambda x: {u"text": x}, tweets)
+# rows_to_insert = tweets
+# table_id = 'tanelis.markov_chain.generated_tweets'
+# client = bigquery.Client()
+
+# errors = client.insert_rows_json(table_id, rows_to_insert)
+# if errors == []:
+#     print("New rows have been added.")
+# else:
+#     print("Encountered errors while inserting rows: {}".format(errors))
